@@ -1,0 +1,15 @@
+//
+//  UIView+LPBadge.m
+//  LPBadgeDemo
+//
+//  Created by Jack on 2017/12/27.
+//  Copyright © 2017年 Jack. All rights reserved.
+//
+
+#import "UIView+LPBadge.h"
+
+@implementation UIView (LPBadge)
+
+
+
+@end
