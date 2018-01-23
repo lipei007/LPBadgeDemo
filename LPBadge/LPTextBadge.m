@@ -75,10 +75,12 @@
 
 - (void)setForegroundColor:(UIColor *)foregroundColor {
     _foregroundColor = foregroundColor;
+    self.valueLayer.foregroundColor = _foregroundColor.CGColor;
 }
 
 - (void)setBackgroundColor:(UIColor *)backgroundColor {
     _backgroundColor = backgroundColor;
+    [self updateColor];
 }
 
 - (void)explode {
@@ -175,6 +177,15 @@
     // 更新TextLayer Frame
     CGFloat x = (CGRectGetWidth(self.bounds) - textSize.width) * 0.5,y = (CGRectGetHeight(self.bounds) - textSize.height) * 0.5;
     self.valueLayer.frame = CGRectMake(x, y, textSize.width, textSize.height);
+}
+
+- (void)updateColor {
+    self.originLayer.fillColor = self.backgroundColor.CGColor;
+    self.originLayer.strokeColor = self.backgroundColor.CGColor;
+    self.dragLayer.fillColor = self.backgroundColor.CGColor;
+    self.dragLayer.strokeColor = self.backgroundColor.CGColor;
+    self.borderLayer.fillColor = self.backgroundColor.CGColor;
+    self.borderLayer.strokeColor = self.backgroundColor.CGColor;
 }
 
 #pragma mark Layer
