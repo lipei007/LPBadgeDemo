@@ -36,7 +36,7 @@
 
 - (void) foo {
     LPTextBadge *badge = [[LPTextBadge alloc] initWithFrame:CGRectMake(0, 0, 20, 20)];
-    [badge setBadgeNumber:1];
+    [badge setBadgeNumber:10];
     [_v addSubview:badge];
     _badge = badge;
     _badge.explodeCompletionBlock = ^{

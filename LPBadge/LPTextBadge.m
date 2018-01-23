@@ -158,7 +158,6 @@
     
     CGFloat r = size.height * 0.5;
     
-    NSLog(@"w: %f h: %f",size.width,size.height);
     // 更新自身Size
     if (size.width == size.height) {
         [self setWidth:size.width];
@@ -311,8 +310,11 @@
 
 - (UIBezierPath *) dragPath:(CGPoint)endPoint percent:(CGFloat)percent{
     
-    CGFloat r0 = 10.0f * (1 - percent);
+    CGFloat r0 = Min_Width * (1 - percent);
     CGFloat r1 = 0.5 * MIN(CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+    if (r0 < 5.0) {
+        r0 = 5.0f;
+    }
 
     CGPoint originPoint = [self convertPoint:_touchBeforePoint fromView:self.superview];
     CGPoint centerPoint = [self convertPoint:self.center fromView:self.superview];
@@ -343,8 +345,6 @@
     CGPoint controlPoint2 = CGPointMake(fromPoint2.x + (distance / 2) * sine, fromPoint2.y + (distance / 2) * cosine);
     
     UIBezierPath *dampingLayerPath = [UIBezierPath bezierPath];
-    
-    NSLog(@"%@ %@ %@ %@",[NSValue valueWithCGPoint:fromPoint1],[NSValue valueWithCGPoint:fromPoint2],[NSValue valueWithCGPoint:toPoint1],[NSValue valueWithCGPoint:toPoint2]);
     
     // Add two curve lines to align both referenced view and referenced snapshot view.
     [dampingLayerPath moveToPoint:fromPoint1];
