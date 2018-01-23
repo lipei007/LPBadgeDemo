@@ -13,48 +13,6 @@
 #define Text_Size 12.0f
 #define Drag_Max 40.0f
 
-typedef struct {
-    CGPoint p0;
-    CGPoint p1;
-} foo;
-
-foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
-    
-    foo result;
-    
-    CGFloat a = p.x;
-    CGFloat c = b - p.y;
-    /*
-     y = kx + b;
-     (x - a) ^ 2 + (y - py) ^ 2 = r ^ 2
-     (x - a) ^ 2 + (kx + c) ^ 2 = r ^ 2
-     x^2 - 2ax + a^2 + k^2x^2 + 2ckx + c^2 = r^2
-     (1+k^2)x^2 + (2ck - 2a)x + (a^2 + c^2) = r^2
-     x^2 + ((2ck - 2a) / (1+k^2))x + ((a^2 + c^2) / (1+k^2)) = r^2 / (a^2 + c^2)
-     
-     
-     (a1 + b1)^2 = c1
-     a1^2 + 2a1b1 + b1^2 = c1
-     
-     b1 = ((2ck - 2a) / (1+k^2)) / 2
-     (x + b1)^2 = (r^2 / (a^2 + c^2)) - (((a^2 + c^2) / (1+k^2)) - b1^2)
-     
-     */
-    
-    CGFloat b1 = ((2 * c * k - 2 * a) / (1 + pow(k,2))) / 2.0;
-    CGFloat c1 = (pow(r, 2) / (pow(a, 2) + pow(c, 2))) - ((pow(a, 2) + pow(c, 2)) / (1 + pow(k, 2)) - pow(b1, 2));
-    CGFloat x0 = sqrt(c1) - b1;
-    CGFloat x1 = -sqrt(c1) - b1;
-    
-    CGFloat y0 = k * x0 + b;
-    CGFloat y1 = k * x1 + b;
-    
-    result.p0 = CGPointMake(x0, y0);
-    result.p1 = CGPointMake(x1, y1);
-    
-    return result;
-}
-
 
 @interface LPTextBadge ()
 {
@@ -67,6 +25,7 @@ foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
     CGPoint _touchBeforePoint;
     BOOL _explosible;
 }
+@property (nonatomic,strong) CAShapeLayer *originLayer;
 @property (nonatomic,strong) CAShapeLayer *borderLayer;
 @property (nonatomic,strong) CAShapeLayer *dragLayer;
 @property (nonatomic,strong) CATextLayer *valueLayer;
@@ -148,6 +107,7 @@ foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
     
     [super willMoveToSuperview:newSuperview];
     
+    [self.layer addSublayer:self.originLayer];
     [self.layer addSublayer:self.dragLayer];
     [self.layer addSublayer:self.borderLayer];
     [self.layer addSublayer:self.valueLayer];
@@ -219,6 +179,16 @@ foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
 }
 
 #pragma mark Layer
+
+- (CAShapeLayer *)originLayer {
+    if (!_originLayer) {
+        _originLayer = [CAShapeLayer layer];
+        _originLayer.fillColor = self.backgroundColor.CGColor;
+        _originLayer.strokeColor = self.backgroundColor.CGColor;
+        _originLayer.lineWidth = 0.1f;
+    }
+    return _originLayer;
+}
 
 - (CAShapeLayer *)dragLayer {
     if (!_dragLayer) {
@@ -309,6 +279,7 @@ foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
         
         // 水滴分离
         self.dragLayer.path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:self.bounds.size.height * 0.5].CGPath;
+        self.originLayer.path = nil;
         
     } else {
         
@@ -329,6 +300,7 @@ foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
             
             self.center = _touchBeforePoint;
             self.dragLayer.path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:self.bounds.size.height * 0.5].CGPath;
+            self.originLayer.path = nil;
             
         } completion:^(BOOL finished) {
             
@@ -338,40 +310,56 @@ foo intersection(CGFloat k,CGFloat b, CGPoint p,CGFloat r) {
 }
 
 - (UIBezierPath *) dragPath:(CGPoint)endPoint percent:(CGFloat)percent{
+    
     CGFloat r0 = 10.0f * (1 - percent);
     CGFloat r1 = 0.5 * MIN(CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
 
     CGPoint originPoint = [self convertPoint:_touchBeforePoint fromView:self.superview];
     CGPoint centerPoint = [self convertPoint:self.center fromView:self.superview];
     
-    UIBezierPath *path = [UIBezierPath bezierPathWithArcCenter:originPoint radius:r0 startAngle:0 endAngle:M_PI * 2 clockwise:YES];
-    [path addArcWithCenter:centerPoint radius:r1 startAngle:0 endAngle:M_PI * 2 clockwise:YES];
+    //
+    CGFloat distance = sqrt(pow(centerPoint.x - originPoint.x, 2) + pow(centerPoint.y - originPoint.y, 2));
     
-    CGFloat k,k1,b,b1,b2;
+    CGFloat sine = (centerPoint.x - originPoint.x) / distance;
+    CGFloat cosine = (centerPoint.y - originPoint.y) / distance;
+    CGFloat angle = asin(sine);
     
-    k = (centerPoint.y - originPoint.y) / (centerPoint.x - originPoint.y);
-    b = centerPoint.y - k * centerPoint.x;
-    k1 = -1.0 / k;
-    b1 = centerPoint.y - k1 * centerPoint.x;
-    b2 = originPoint.y - k1 * originPoint.x;
+    CGFloat fromRadius = r0 * MAX(0.3, (1 - distance / Drag_Max));
+    CGFloat toRadius = r1;
     
-    foo f1 = intersection(k1, b1, centerPoint, r1);
-    foo f2 = intersection(k1, b2, originPoint, r0);
+    CGPoint fromCenter = originPoint;
+    CGPoint toCenter = centerPoint;
     
-    [path moveToPoint:f2.p0];
-    [path addLineToPoint:f1.p0];
-    [path moveToPoint:f2.p1];
-    [path addLineToPoint:f1.p1];
-    [path addLineToPoint:f1.p0];
-    [path moveToPoint:f2.p0];
-    [path addLineToPoint:f2.p1];
+    // The two points of tangency of referenced view.
+    CGPoint fromPoint1 = CGPointMake(fromCenter.x - fromRadius * cosine, fromCenter.y + fromRadius * sine);
+    CGPoint fromPoint2 = CGPointMake(fromCenter.x + fromRadius * cosine, fromCenter.y - fromRadius * sine);
     
+    // The two points of tangency of referenced snapshot view.
+    CGPoint toPoint1 = CGPointMake(toCenter.x - toRadius * cosine, toCenter.y + toRadius * sine);
+    CGPoint toPoint2 = CGPointMake(toCenter.x + toRadius * cosine, toCenter.y - toRadius * sine);
     
-//    [path closePath];
+    // The two points of tangency of curve lines.
+    CGPoint controlPoint1 = CGPointMake(fromPoint1.x + (distance / 2) * sine, fromPoint1.y + (distance / 2) * cosine);
+    CGPoint controlPoint2 = CGPointMake(fromPoint2.x + (distance / 2) * sine, fromPoint2.y + (distance / 2) * cosine);
     
-    return path;
+    UIBezierPath *dampingLayerPath = [UIBezierPath bezierPath];
     
-    return [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:self.bounds.size.height * 0.5];
+    NSLog(@"%@ %@ %@ %@",[NSValue valueWithCGPoint:fromPoint1],[NSValue valueWithCGPoint:fromPoint2],[NSValue valueWithCGPoint:toPoint1],[NSValue valueWithCGPoint:toPoint2]);
+    
+    // Add two curve lines to align both referenced view and referenced snapshot view.
+    [dampingLayerPath moveToPoint:fromPoint1];
+    [dampingLayerPath addLineToPoint:fromPoint2];
+    [dampingLayerPath addQuadCurveToPoint:toPoint2 controlPoint:controlPoint2];
+    [dampingLayerPath addLineToPoint:toPoint1];
+    [dampingLayerPath addQuadCurveToPoint:fromPoint1 controlPoint:controlPoint1];
+    
+    UIBezierPath *originLayerPath = [UIBezierPath bezierPath];
+    // The origin view replaced by an circle layer, scaled by disitance.
+    [originLayerPath addArcWithCenter:fromCenter radius:fromRadius startAngle:angle endAngle:(M_PI * 2 + angle) clockwise:YES];
+    
+    self.originLayer.path = [originLayerPath CGPath];
+    
+    return dampingLayerPath;
 }
 
 - (void)startExplode {
